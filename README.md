@@ -1,38 +1,40 @@
-# Grouche
+# 🪙 Grouche
 
-Grouche is a decentralized fundraising and vesting system built on the TON blockchain.
-It allows projects (called companies) to receive donations in TON and multiple Jetton tokens, while automatically handling refunds, payouts, and vesting schedules.
+**Grouche** is a decentralized **fundraising and vesting system** built on the **TON blockchain**.  
+It allows projects (called *companies*) to receive donations in TON and multiple Jetton tokens while automatically managing **refunds, payouts, and vesting schedules**.
 
-Each company is deployed as an individual Grouche contract through the GroucheFactory, which authorizes deployments based on signed requests verified by an authority public key.
+Each company is deployed as an individual **Grouche contract** via the **GroucheFactory**, which authorizes deployments based on signed requests verified by an authority public key.
+
+---
 
 ## 🧠 Overview
 
-Supports multiple Jetton currencies (GRC, USDT, NOT, PX, DOGS).
+- Supports multiple Jetton currencies: **GRC**, **USDT**, **NOT**, **PX**, **DOGS**.  
+- Accepts both **TON** and **Jetton** donations.  
+- **Before expiration:** donations are forwarded to the company owner.  
+- **After expiration:** donations are automatically refunded to donors.  
+- Includes **GRC vesting logic** where a portion of tokens is locked and gradually unlocked over time.  
+- Each vesting tranche stores:
+  - `amount`
+  - `unlockAt` (timestamp)
+- The factory verifies **digital signatures** from a trusted authority public key before deploying new Grouche instances.
 
-Accepts both TON and Jetton donations.
+---
 
-Before expiration: donations are forwarded to the company owner.
+## ⚙️ Project Structure
 
-After expiration: donations are automatically refunded to donors.
+| Folder | Description |
+|:--------|:-------------|
+| `contracts/` | Smart contracts written in **Tact**. |
+| `wrappers/` | TypeScript wrapper classes implementing `Contract` from `ton-core`, including serialization and build helpers. |
+| `tests/` | Unit tests for contracts. |
+| `scripts/` | Deployment and utility scripts. |
 
-Includes GRC vesting logic where part of the donated tokens is locked and gradually unlocked over time.
+---
 
-Each vesting tranche stores an amount and unlockAt timestamp.
+## 🚀 Usage
 
-The factory verifies digital signatures from a trusted public key before deploying new Grouche instances.
-
-## ⚙️ Project structure
-
-contracts/ — Source code of all smart contracts written in Tact.
-
-wrappers/ — TypeScript wrapper classes implementing Contract from ton-core, including serialization and build helpers.
-
-tests/ — Unit tests for contracts.
-
-scripts/ — Deployment and utility scripts.
-
-🚀 Usage
-Build
+### 🏗 Build
 
 `npx blueprint build`
 ### or
