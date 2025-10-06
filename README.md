@@ -224,24 +224,6 @@ Deployment value ton("1") is recommended for safe child deployment.
 
 Withdraw is restricted to the factory owner.
 
-🧱 Architecture diagram
-┌───────────────────────────────┐
-│        GroucheFactory         │
-│  - authorityPubKey            │
-│  - deploys Grouche contracts  │
-└──────────────┬────────────────┘
-               │ (verified CreateGroucheSigned)
-               ▼
-┌───────────────────────────────┐
-│            Grouche            │
-│  - accepts TON & Jettons      │
-│  - sends payouts/refunds      │
-│  - manages GRC vesting        │
-└──────────────┬────────────────┘
-               │
-               ▼
-        Donors / Owners
-
 🧰 Development
 
 Written in Tact
