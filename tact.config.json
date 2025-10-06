@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tact-lang/tact/main/src/config/configSchema.json",
+  "projects": [
+    {
+      "name": "Grouche",
+      "path": "contracts/grouche.tact",
+      "output": "build/Grouche",
+      "options": {
+        "debug": false,
+        "external": false
+      },
+      "mode": "full"
+    },
+    {
+      "name": "Factory",
+      "path": "contracts/factory.tact",
+      "output": "build/Factory",
+      "options": {
+        "debug": false,
+        "external": false
+      },
+      "mode": "full"
+    }
+  ]
+}
