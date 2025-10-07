@@ -7,7 +7,7 @@ struct GrcVestingSpec {
 
 message(0xac564295) Deploy {
     owner: Address;
-    companyId: Int as uint64;
+    initiativeId: Int as uint64;
     expiredAt: Int as uint64;
 
     grcMinterAddress: Address;
@@ -104,38 +104,38 @@ inline extends mutates fun deleteIdx(self: Array, idx: Int): GrcVestingTranche {
     return memorized;
 }
 
-inline fun buildTonPayloadOwner(companyId: Int): Cell {
+inline fun buildTonPayloadOwner(initiativeId: Int): Cell {
     let b = beginCell();
     let _ = b.storeSlice(("Grouche: owner payout").asComment().beginParse());
-    let _ = b.storeUint(companyId, 64);
+    let _ = b.storeUint(initiativeId, 64);
     return b.endCell();
 }
 
-inline fun buildJettonPayloadOwner(companyId: Int): Slice {
+inline fun buildJettonPayloadOwner(initiativeId: Int): Slice {
     let b = beginCell();
     let _ = b.storeSlice(("Grouche: owner payout").asComment().beginParse());
-    let _ = b.storeUint(companyId, 64);
+    let _ = b.storeUint(initiativeId, 64);
     return b.asSlice();
 }
 
-inline fun buildJettonPayloadClaim(companyId: Int): Slice {
+inline fun buildJettonPayloadClaim(initiativeId: Int): Slice {
     let b = beginCell();
     let _ = b.storeSlice(("Grouche: GRC claim").asComment().beginParse());
-    let _ = b.storeUint(companyId, 64);
+    let _ = b.storeUint(initiativeId, 64);
     return b.asSlice();
 }
 
-inline fun buildTonPayloadRefund(companyId: Int): Cell {
+inline fun buildTonPayloadRefund(initiativeId: Int): Cell {
     let b = beginCell();
     let _ = b.storeSlice(("Grouche: refund company expired").asComment().beginParse());
-    let _ = b.storeUint(companyId, 64);
+    let _ = b.storeUint(initiativeId, 64);
     return b.endCell();
 }
 
-inline fun buildJettonPayloadRefund(companyId: Int): Slice {
+inline fun buildJettonPayloadRefund(initiativeId: Int): Slice {
     let b = beginCell();
     let _ = b.storeSlice(("Grouche: refund company expired").asComment().beginParse());
-    let _ = b.storeUint(companyId, 64);
+    let _ = b.storeUint(initiativeId, 64);
     return b.asSlice();
 }
 
@@ -145,7 +145,7 @@ inline fun emptyArray(): Array {
 
 contract Grouche {
     owner: Address;
-    companyId: Int as uint64;
+    initiativeId: Int as uint64;
     expiredAt: Int as uint64;
 
     grcMinterAddress: Address;
@@ -164,7 +164,7 @@ contract Grouche {
 
     init(msg: Deploy) {
         self.owner = msg.owner;
-        self.companyId = msg.companyId;
+        self.initiativeId = msg.initiativeId;
         self.expiredAt = msg.expiredAt;
 
         self.grcMinterAddress = msg.grcMinterAddress;
@@ -189,7 +189,7 @@ contract Grouche {
             message(MessageParameters {
                 to: sender(),
                 value: 0,
-                body: buildTonPayloadRefund(self.companyId),
+                body: buildTonPayloadRefund(self.initiativeId),
                 mode: SendRemainingValue,
             });
             return;
@@ -198,7 +198,7 @@ contract Grouche {
         message(MessageParameters {
             to: self.owner,
             value: 0,
-            body: buildTonPayloadOwner(self.companyId),
+            body: buildTonPayloadOwner(self.initiativeId),
             mode: SendRemainingValue,
         });
     }
@@ -219,7 +219,7 @@ contract Grouche {
         let _ = arr.deleteIdx(index);
         self.grcVesting.set(addr, arr);
 
-        sendJettons(addr, item.amount, self.grcMinterAddress, self.grcJettonWalletCode, buildJettonPayloadClaim(self.companyId));
+        sendJettons(addr, item.amount, self.grcMinterAddress, self.grcJettonWalletCode, buildJettonPayloadClaim(self.initiativeId));
     }
 
     receive(msg: JettonNotification) {
@@ -255,15 +255,15 @@ contract Grouche {
 
         if (now() >= self.expiredAt) {
             if (sender() == thisUsdt) {
-                sendJettons(msg.sender, msg.amount, self.usdtMinterAddress, self.usdtJettonWalletCode, buildJettonPayloadRefund(self.companyId));
+                sendJettons(msg.sender, msg.amount, self.usdtMinterAddress, self.usdtJettonWalletCode, buildJettonPayloadRefund(self.initiativeId));
             } else if (sender() == thisGrc) {
-                sendJettons(msg.sender, msg.amount, self.grcMinterAddress, self.grcJettonWalletCode, buildJettonPayloadRefund(self.companyId));
+                sendJettons(msg.sender, msg.amount, self.grcMinterAddress, self.grcJettonWalletCode, buildJettonPayloadRefund(self.initiativeId));
             } else if (sender() == thisNot) {
-                sendJettons(msg.sender, msg.amount, self.notMinterAddress, self.notJettonWalletCode, buildJettonPayloadRefund(self.companyId));
+                sendJettons(msg.sender, msg.amount, self.notMinterAddress, self.notJettonWalletCode, buildJettonPayloadRefund(self.initiativeId));
             } else if (sender() == thisPx) {
-                sendJettons(msg.sender, msg.amount, self.pxMinterAddress, self.pxJettonWalletCode, buildJettonPayloadRefund(self.companyId));
+                sendJettons(msg.sender, msg.amount, self.pxMinterAddress, self.pxJettonWalletCode, buildJettonPayloadRefund(self.initiativeId));
             } else if (sender() == thisDogs) {
-                sendJettons(msg.sender, msg.amount, self.dogsMinterAddress, self.dogsJettonWalletCode, buildJettonPayloadRefund(self.companyId));
+                sendJettons(msg.sender, msg.amount, self.dogsMinterAddress, self.dogsJettonWalletCode, buildJettonPayloadRefund(self.initiativeId));
             } else {
                 throw(101);
             }
@@ -271,7 +271,7 @@ contract Grouche {
         }
 
         if (sender() == thisUsdt) {
-            sendJettons(self.owner, msg.amount, self.usdtMinterAddress, self.usdtJettonWalletCode, buildJettonPayloadOwner(self.companyId));
+            sendJettons(self.owner, msg.amount, self.usdtMinterAddress, self.usdtJettonWalletCode, buildJettonPayloadOwner(self.initiativeId));
         } else if (sender() == thisGrc) {
             if (msg.amount >= ton("100")) {
                 let payload = msg.forwardPayload;
@@ -298,15 +298,15 @@ contract Grouche {
                 }
 
                 if (ownerAmount > 0) {
-                    sendJettons(self.owner, ownerAmount, self.grcMinterAddress, self.grcJettonWalletCode, buildJettonPayloadOwner(self.companyId));
+                    sendJettons(self.owner, ownerAmount, self.grcMinterAddress, self.grcJettonWalletCode, buildJettonPayloadOwner(self.initiativeId));
                 }
             }
         } else if (sender() == thisNot) {
-            sendJettons(self.owner, msg.amount, self.notMinterAddress, self.notJettonWalletCode, buildJettonPayloadOwner(self.companyId));
+            sendJettons(self.owner, msg.amount, self.notMinterAddress, self.notJettonWalletCode, buildJettonPayloadOwner(self.initiativeId));
         } else if (sender() == thisPx) {
-            sendJettons(self.owner, msg.amount, self.pxMinterAddress, self.pxJettonWalletCode, buildJettonPayloadOwner(self.companyId));
+            sendJettons(self.owner, msg.amount, self.pxMinterAddress, self.pxJettonWalletCode, buildJettonPayloadOwner(self.initiativeId));
         } else if (sender() == thisDogs) {
-            sendJettons(self.owner, msg.amount, self.dogsMinterAddress, self.dogsJettonWalletCode, buildJettonPayloadOwner(self.companyId));
+            sendJettons(self.owner, msg.amount, self.dogsMinterAddress, self.dogsJettonWalletCode, buildJettonPayloadOwner(self.initiativeId));
         } else {
             throw(101);
         }

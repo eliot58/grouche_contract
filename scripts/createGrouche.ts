@@ -28,11 +28,11 @@ export async function run(provider: NetworkProvider) {
   console.log(' publicKey (hex):', pubHex);
   console.log(' authorityPubKey (uint256 to pass into FactoryInit):', '0x' + authorityPubKeyUint256.toString(16));
 
-  const companyId = 1n;
+  const initiativeId = 1n;
   const expiredAt = BigInt(Math.floor(Date.now() / 1000) + 600);
 
   const signedDataCell = beginCell()
-    .storeUint(companyId, 64)
+    .storeUint(initiativeId, 64)
     .storeUint(expiredAt, 64)
     .endCell();
 
@@ -51,7 +51,7 @@ export async function run(provider: NetworkProvider) {
   const body: CreateGroucheSigned = {
     $$type: 'CreateGroucheSigned',
     bundle,
-    companyId,
+    initiativeId,
     expiredAt,
   };
 
@@ -63,7 +63,7 @@ export async function run(provider: NetworkProvider) {
   );
 
   console.log('CreateGroucheSigned sent:', {
-    companyId: companyId.toString(),
+    initiativeId: initiativeId.toString(),
     expiredAt: expiredAt.toString(),
     factory: FACTORY_ADDR,
   });

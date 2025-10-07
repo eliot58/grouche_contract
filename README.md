@@ -1,7 +1,7 @@
 # 🪙 Grouche
 
 **Grouche** is a decentralized **fundraising and vesting system** built on the **TON blockchain**.  
-It allows projects (called *companies*) to receive donations in TON and multiple Jetton tokens while automatically managing **refunds, payouts, and vesting schedules**.
+It allows projects (called *initiatives*) to receive donations in TON and multiple Jetton tokens while automatically managing **refunds, payouts, and vesting schedules**.
 
 Each company is deployed as an individual **Grouche contract** via the **GroucheFactory**, which authorizes deployments based on signed requests verified by an authority public key.
 
@@ -131,7 +131,7 @@ Utility functions
 
 ## 🏗 GroucheFactory Contract
 
-GroucheFactory is the factory contract responsible for authorizing and deploying individual Grouche company contracts.
+GroucheFactory is the factory contract responsible for authorizing and deploying individual Grouche initiative contracts.
 Only signed and verified requests from the authority public key can trigger a deployment.
 
 ## Messages
@@ -153,13 +153,13 @@ Authorized request to deploy a new Grouche contract.
 
 bundle: SignedBundle — Contains signature and signedData.
 
-`companyId: uint64`
+`initiativeId: uint64`
 
 `expiredAt: uint64`
 
 Process:
 
-Verifies the digital signature via verifySignature(self.authorityPubKey).
+Verifies the digital signature via `verifySignature(self.authorityPubKey)`.
 
 If valid, constructs a Deploy message and deploys a new Grouche contract:
 

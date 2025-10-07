@@ -19,7 +19,7 @@ message(0xae37766f) FactoryInit {
 message(0xbc7b9b61) CreateGroucheSigned {
     bundle: SignedBundle;
 
-    companyId: Int as uint64;
+    initiativeId: Int as uint64;
     expiredAt: Int as uint64;
 }
 
@@ -65,7 +65,7 @@ contract GroucheFactory {
 
         let args = Deploy {
             owner: self.owner,
-            companyId: msg.companyId,
+            initiativeId: msg.initiativeId,
             expiredAt: msg.expiredAt,
 
             grcMinterAddress: self.grcMinterAddress,
