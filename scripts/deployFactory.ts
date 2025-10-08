@@ -1,12 +1,12 @@
 import { Address, toNano, Cell } from '@ton/core';
-import { GroucheFactory } from '../build/Factory/Factory_GroucheFactory';
+import { Factory } from '../build/Factory/Factory_Factory';
 import { NetworkProvider } from '@ton/blueprint';
 
 export async function run(provider: NetworkProvider) {
 
     const AUTH_PUBKEY_HEX = process.env.AUTH_PUBKEY_HEX!;
 
-    const authorityPubKey = BigInt('0x' + AUTH_PUBKEY_HEX);
+    const pub = BigInt('0x' + AUTH_PUBKEY_HEX);
 
     const usdtMinter = Address.parse(process.env.USDT_MINTER!);
     const grcMinter = Address.parse(process.env.GRC_MINTER!);
@@ -23,9 +23,9 @@ export async function run(provider: NetworkProvider) {
     const dogsJettonWalletCode = Cell.fromHex(jettonWalletCode);
 
     const factory = provider.open(
-        await GroucheFactory.fromInit({
+        await Factory.fromInit({
             $$type: 'FactoryInit',
-            authorityPubKey,
+            pub,
             usdtMinterAddress: usdtMinter,
             grcMinterAddress: grcMinter,
             notMinterAddress: notMinter,
@@ -42,11 +42,11 @@ export async function run(provider: NetworkProvider) {
     await factory.send(
         provider.sender(),
         {
-            value: toNano('0.05'),
+            value: toNano('0.1'),
         },
         null
     );
 
     await provider.waitForDeploy(factory.address);
-    console.log('GroucheFactory deployed at:', factory.address.toString());
+    console.log('Factory deployed at:', factory.address.toString());
 }

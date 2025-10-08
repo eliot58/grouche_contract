@@ -1,191 +1,256 @@
 # 🪙 Grouche
 
-**Grouche** is a decentralized **fundraising and vesting system** built on the **TON blockchain**.  
-It allows projects (called *initiatives*) to receive donations in TON and multiple Jetton tokens while automatically managing **refunds, payouts, and vesting schedules**.
+**Grouche** is a decentralized fundraising and vesting system built on the **TON blockchain**.  
+It allows **verified projects** (called _initiatives_) to receive donations in **TON** and multiple **Jetton tokens**, while automatically managing **refunds**, **payouts**, and **vesting schedules**.
 
-Each company is deployed as an individual **Grouche contract** via the **GroucheFactory**, which authorizes deployments based on signed requests verified by an authority public key.
+All initiatives are deployed via a single **Factory contract**, which validates **Ed25519-signed** deployment requests from a trusted authority.
 
 ---
 
 ## 🧠 Overview
 
-- Supports multiple Jetton currencies: **GRC**, **USDT**, **NOT**, **PX**, **DOGS**.  
-- Accepts both **TON** and **Jetton** donations.  
-- **Before expiration:** donations are forwarded to the company owner.  
-- **After expiration:** donations are automatically refunded to donors.  
-- Includes **GRC vesting logic** where a portion of tokens is locked and gradually unlocked over time.  
-- Each vesting tranche stores:
-  - `amount`
-  - `unlockAt` (timestamp)
-- The factory verifies **digital signatures** from a trusted authority public key before deploying new Grouche instances.
+- Supports multiple Jetton currencies: **GRC, USDT, NOT, PX, DOGS**  
+- Accepts both **TON** and **Jetton donations**
+
+### Before expiration
+- Donations go to the **initiative creator**
+- **GRC tokens** are partially locked via vesting
+
+### After expiration
+- Donors receive **automatic refunds**
+- Founders (or creators) can **claim remaining balances**
+- Donors can **unlock their vested GRC**
+
+### Initiative Types
+| Type | Description |
+|------|--------------|
+| 🏛 **Foundation** | Full refund and vesting logic |
+| ⚙️ **Regular** | Simplified, direct-payout fundraising |
 
 ---
 
-## ⚙️ Project Structure
+## 🧩 Architecture
 
-| Folder | Description |
-|:--------|:-------------|
-| `contracts/` | Smart contracts written in **Tact**. |
-| `wrappers/` | TypeScript wrapper classes implementing `Contract` from `ton-core`, including serialization and build helpers. |
-| `tests/` | Unit tests for contracts. |
-| `scripts/` | Deployment and utility scripts. |
+| Contract | Description |
+|-----------|-------------|
+| **Factory** | Deploys verified initiatives (Foundation / Regular) using Ed25519 signatures |
+| **Foundation** | Advanced fundraising contract with vesting, refunds, and multi-Jetton support |
+| **Regular** | Simplified fundraising contract with direct payouts and grace period for claims |
+| **utils/** | Shared helpers: constants, messages, arrays, payload builders, jetton utils, vesting tiers |
 
 ---
 
-## 🚀 Usage
+## 🏗 Factory Contract
 
-### 🏗 Build
+### Initialization — `FactoryInit (0xae37766f)`
 
-`npx blueprint build`
-### or
+| Field | Type | Description |
+|--------|------|-------------|
+| `pub` | `uint256` | Ed25519 authority public key |
+| `*MinterAddress` | `Address` | Jetton minter addresses for each token |
+| `*JettonWalletCode` | `Cell` | Jetton wallet code cells for deterministic wallet generation |
 
-`yarn blueprint build`
+**Behavior**
+- Sets `founder = sender()`
+- Initializes all parameters
 
-Test
+---
 
-`npx blueprint test`
-### or
+### Deploy Initiative — `CreateInitiative (0xbc7b9b61)`
 
-`yarn blueprint test`
+| Field | Type | Description |
+|--------|------|-------------|
+| `signature` | `bytes64` | Ed25519 signature over signed data |
+| `signedData` | `Slice` | Encoded payload containing initiative params |
 
-Deploy / Run scripts
+**Process**
+1. Requires at least `1 TON` for anti-spam (`context().value >= ton("1")`)
+2. Verifies signature using `checkSignature()`
+3. Parses:
+   - `initiativeId: uint64`
+   - `isRegular: bool`
+   - `expiredAt: uint64`
+4. Deploys:
+   - **Regular** initiative if `isRegular == true`
+   - **Foundation** initiative otherwise
+5. Sends `0.05 TON` for deployment gas
 
-`npx blueprint run`
-### or
+---
 
-`yarn blueprint run`
+### Withdraw — `Withdraw (0xc959163f)`
 
-Add a new contract
+- Only founder can withdraw remaining TON balance  
+- Keeps `GAS_RESERVE_TON` in contract  
+- Adds comment `"Factory: withdraw"`
 
-`npx blueprint create ContractName`
-### or
+---
 
-`yarn blueprint create ContractName`
+## 🧩 Foundation Contract
 
-## 🧩 Grouche Contract
+### Purpose
+Handles complex fundraising logic:
+- Refunds donations after expiration  
+- Applies GRC vesting tiers  
+- Allows donors to claim vested GRC  
+- Founder claims unclaimed balances after expiry  
 
-The Grouche contract manages all fundraising logic, handling incoming donations and distributing them between the owner and GRC vesting accounts.
+---
 
-Constants
-`const BPS_DENOM: Int = 10_000;`
+### Behavior Summary
 
+| State | Action |
+|--------|--------|
+| **Before expiration** | TON and Jetton donations accepted |
+| **After expiration** | Donations refunded automatically |
+| **Vesting** | Donors claim vested GRC when unlocked |
+| **Founder Claim** | After expiry, founder withdraws remaining Jettons and TON |
 
-Used for percentage calculations in basis points (1 bps = 0.01%).
+---
 
-Structures
+### Core Messages
 
-GrcVestingSpec — Defines lock duration and return percentage.
+#### 💎 DonateTon
+- If expired → refunds TON donation immediately  
+- If active → held and tracked for payout
 
-GrcVestingTranche — Represents a single vesting tranche with amount and unlockAt.
+#### 💠 JettonNotification
+Handles incoming Jetton donations:
+- If expired → refunds all Jettons back  
+- If active →  
+  - Adds amounts to balances (USDT, NOT, PX, DOGS)  
+  - For **GRC**:
+    - Reads vesting tier from payload  
+    - Splits between founder and donor’s vesting  
+    - Uses `grcTierToParams(tier)` for `lockDays` and `returnBps`
 
-Array — A mapped dynamic array implementation for vesting tranches.
+#### 🎁 ClaimGrcVesting
+- Donor unlocks vested GRC once `now >= unlockAt`
 
-TierBps — Defines a vesting tier and corresponding BPS rate.
+#### 🧾 ClaimEscrow
+- Founder can claim remaining Jettons & TON after expiration
 
-JettonWalletStateInit — Used to deterministically calculate Jetton wallet addresses.
+---
 
-## Messages
-
-Deploy — Initializes the contract.
-
-DonateTon — Handles incoming TON donations (refund or payout).
-
-ClaimGrcVesting — Allows donors to unlock vested GRC tokens after the vesting period.
-
-JettonNotification — Handles incoming Jetton transfers and applies vesting logic.
-
-JettonTransfer — Internal Jetton transfer format.
-
-Behavior
-Before expiration
-
-All TON and Jetton donations are forwarded to the owner.
-
-For GRC donations, part of the tokens is allocated for vesting based on the tier.
-
-After expiration
-
-Any incoming TON or Jetton transfers are refunded to senders.
-
-Vesting
-
-Donors can call ClaimGrcVesting to unlock GRC tokens after unlockAt has passed.
-
-Utility functions
-
-`buildTonPayloadOwner()` / `buildJettonPayloadOwner()` — Create comments for owner payouts.
-
-`buildTonPayloadRefund()` / `buildJettonPayloadRefund()` — Create comments for refunds.
-
-`calculateJettonWalletAddress()` — Deterministic Jetton wallet address calculation.
-
-`grcTierToParams()` — Defines 5 GRC vesting tiers:
+### GRC Vesting Tiers
 
 | Tier | Lock (days) | Return BPS | Return % |
-|:----:|:------------:|:-----------:|:---------:|
+|------|--------------|-------------|----------|
 | 1 | 7 | 100 | 1% |
 | 2 | 30 | 500 | 5% |
 | 3 | 90 | 2000 | 20% |
 | 4 | 180 | 4000 | 40% |
 | 5 | 365 | 10000 | 100% |
 
-## 🏗 GroucheFactory Contract
-
-GroucheFactory is the factory contract responsible for authorizing and deploying individual Grouche initiative contracts.
-Only signed and verified requests from the authority public key can trigger a deployment.
-
-## Messages
-FactoryInit
-
-Initializes the factory.
-
-authorityPubKey: uint256 — Ed25519 public key (32 bytes, big-endian) used for verifying signed deployment requests.
-
-Jetton minter addresses: grc, not, usdt, px, dogs.
-
-Jetton wallet codes: grcJettonWalletCode, usdtJettonWalletCode, etc.
-
-Sets owner = sender().
-
-CreateGroucheSigned (op 0xbc7b9b61)
-
-Authorized request to deploy a new Grouche contract.
-
-bundle: SignedBundle — Contains signature and signedData.
-
-`initiativeId: uint64`
-
-`expiredAt: uint64`
-
-Process:
-
-Verifies the digital signature via `verifySignature(self.authorityPubKey)`.
-
-If valid, constructs a Deploy message and deploys a new Grouche contract:
-
-```
-deploy(DeployParameters {
-    init: initOf Grouche(args),
-    mode: SendIgnoreErrors,
-    value: ton("1"),
-});
+Each vesting tranche:
+```tact
+GrcVestingTranche {
+  amount: Int as coins;
+  unlockAt: Int as uint64;
+}
 ```
 
+## ⚙️ Regular Contract
 
-If invalid, throws with exit code 101.
+### Purpose
+A simplified fundraising model for **short-term initiatives**.  
+Funds are transferred directly to the **creator** or **founder** after expiration, depending on the grace period.
 
-Withdraw
+---
 
-Owner-only function.
+### Differences from Foundation
 
-Requires `sender() == owner`.
+| Feature | Foundation | Regular |
+|----------|-------------|----------|
+| **Refunds** | Automatic for all donations | Only after expiry |
+| **Founder claim** | Immediate after expiry | Delayed by grace period |
+| **Creator claim** | No | Yes — before grace deadline |
+| **Vesting** | Supported | Supported |
+| **Donation handling** | Full | Simplified |
 
-Transfers remaining funds to the owner with comment "GroucheFactory: withdraw".
+---
+
+### Claim Escrow Logic
+
+| Caller | Condition | Result |
+|---------|------------|--------|
+| **creator** | After expiration | Immediate payout |
+| **founder** | After expiration + grace period | Payout to founder |
+| **others** | Always rejected | Exit code `603` |
+
+---
+
+### Core Flow
+
+1. Donors send TON or Jettons → stored in balances  
+2. If expired → donations refunded automatically  
+3. Creator can claim after `expiredAt`  
+4. Founder can claim after `expiredAt + GRACE_PERIOD_DAYS`  
+5. Donors claim vested GRC via `ClaimGrcVesting`
+
+---
+
+### 📊 Getters
+
+| Method | Description |
+|---------|-------------|
+| `getBalances()` | Returns current Jetton balances |
+| `getGrcVesting(address)` | Returns vesting tranches for donor |
 
 ## 🧰 Development
 
-Written in Tact
+```bash
+# Build contracts
+npx blueprint build
 
-Built and deployed with Blueprint (@ton/blueprint)
+# Run tests
+npx blueprint test
 
-TypeScript wrappers auto-generated in wrappers/
+# Deploy or execute scripts
+npx blueprint run
+
+# Create new contract template
+npx blueprint create ContractName
+```
+
+## 🛡 Security & Validation
+
+- **Ed25519 signatures** verify all deployments  
+- **Anti-spam:** 1 TON required to create initiative  
+- **Deterministic Jetton wallets** prevent fund misrouting  
+- **Strict vesting validation** (index bounds, unlock times)  
+- **Gas reserve protection** prevents depletion of balances  
+- **Grace period** prevents early founder withdrawals  
+
+---
+
+## 🪞 Example Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant A as Donor
+    participant F as Factory
+    participant I as Initiative (Foundation/Regular)
+    participant C as Creator
+    participant O as Founder
+
+    A->>F: CreateInitiative (signed)
+    F->>I: Deploy new contract
+    A->>I: Donate TON / Jettons
+    I->>I: Process & store donation
+    Note over I: If GRC → split into founder + vesting tranche
+    A->>I: ClaimGrcVesting (after unlock)
+    I->>A: Send unlocked GRC
+    C->>I: ClaimEscrow (after expiration)
+    I->>C: Send remaining tokens
+    O->>I: ClaimEscrow (after grace period)
+    I->>O: Send remaining tokens + TON
+```
+
+## 📜 Summary
+
+| Component | Description |
+|------------|-------------|
+| **Factory** | Authorizes and deploys initiatives |
+| **Foundation** | Full-featured contract with refunds & vesting |
+| **Regular** | Lightweight fundraising contract |
+| **utils/** | Common modules for payloads, arrays, vesting, etc. |

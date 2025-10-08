@@ -1,7 +1,8 @@
-import "./grouche.tact";
+import "./foundation.tact";
+import "./regular.tact";
 
 message(0xae37766f) FactoryInit {
-    authorityPubKey: Int as uint256;
+    pub: Int as uint256;
 
     grcMinterAddress: Address;
     notMinterAddress: Address;
@@ -16,18 +17,16 @@ message(0xae37766f) FactoryInit {
     dogsJettonWalletCode: Cell;
 }
 
-message(0xbc7b9b61) CreateGroucheSigned {
-    bundle: SignedBundle;
-
-    initiativeId: Int as uint64;
-    expiredAt: Int as uint64;
+message(0xbc7b9b61) CreateInitiative {
+    signature: Slice as bytes64;
+    signedData: Slice;
 }
 
-message(0xc959163f) Withdraw { }
+message(0xc959163f) Withdraw {}
 
-contract GroucheFactory {
-    owner: Address;
-    authorityPubKey: Int as uint256;
+contract Factory {
+    founder: Address;
+    pub: Int as uint256; 
 
     grcMinterAddress: Address;
     usdtMinterAddress: Address;
@@ -42,60 +41,100 @@ contract GroucheFactory {
     dogsJettonWalletCode: Cell;
 
     init(msg: FactoryInit) {
-        self.owner = sender();
-        self.authorityPubKey = msg.authorityPubKey;
+        self.founder = sender();
+        self.pub = msg.pub;
 
-        self.grcMinterAddress  = msg.grcMinterAddress;
-        self.notMinterAddress  = msg.notMinterAddress;
+        self.grcMinterAddress = msg.grcMinterAddress;
+        self.notMinterAddress = msg.notMinterAddress;
         self.usdtMinterAddress = msg.usdtMinterAddress;
-        self.pxMinterAddress   = msg.pxMinterAddress;
+        self.pxMinterAddress = msg.pxMinterAddress;
         self.dogsMinterAddress = msg.dogsMinterAddress;
 
         self.usdtJettonWalletCode = msg.usdtJettonWalletCode;
-        self.grcJettonWalletCode  = msg.grcJettonWalletCode;
-        self.notJettonWalletCode  = msg.notJettonWalletCode;
-        self.pxJettonWalletCode   = msg.pxJettonWalletCode;
+        self.grcJettonWalletCode = msg.grcJettonWalletCode;
+        self.notJettonWalletCode = msg.notJettonWalletCode;
+        self.pxJettonWalletCode = msg.pxJettonWalletCode;
         self.dogsJettonWalletCode = msg.dogsJettonWalletCode;
     }
 
     receive() {}
 
-    receive(msg: CreateGroucheSigned) {
-        throwUnless(101, msg.bundle.verifySignature(self.authorityPubKey));
+    receive(msg: CreateInitiative) {
+        require(context().value >= ton("1"), "Min 1 TON to create");
 
-        let args = Deploy {
-            owner: self.owner,
-            initiativeId: msg.initiativeId,
-            expiredAt: msg.expiredAt,
+        require(checkSignature(msg.signedData.hash(), msg.signature, self.pub), "Invalid bundle");
 
-            grcMinterAddress: self.grcMinterAddress,
-            notMinterAddress: self.notMinterAddress,
-            usdtMinterAddress: self.usdtMinterAddress,
-            pxMinterAddress: self.pxMinterAddress,
-            dogsMinterAddress: self.dogsMinterAddress,
+        let initiativeId = msg.signedData.loadUint(64);
+        let isRegular = msg.signedData.loadBool();
+        let expiredAt = msg.signedData.loadUint(64);
 
-            usdtJettonWalletCode: self.usdtJettonWalletCode,
-            grcJettonWalletCode:  self.grcJettonWalletCode,
-            notJettonWalletCode:  self.notJettonWalletCode,
-            pxJettonWalletCode:   self.pxJettonWalletCode,
-            dogsJettonWalletCode: self.dogsJettonWalletCode
-        };
+        if (isRegular) {
+            let args = RegularInit {
+                founder: self.founder,
+                creator: sender(),
+                initiativeId: initiativeId,
+                expiredAt: expiredAt,
 
-        deploy(DeployParameters {
-            init: initOf Grouche(args),
-            mode: SendIgnoreErrors,
-            value: ton("1"),
-        });
+                grcMinterAddress: self.grcMinterAddress,
+                notMinterAddress: self.notMinterAddress,
+                usdtMinterAddress: self.usdtMinterAddress,
+                pxMinterAddress: self.pxMinterAddress,
+                dogsMinterAddress: self.dogsMinterAddress,
+
+                usdtJettonWalletCode: self.usdtJettonWalletCode,
+                grcJettonWalletCode: self.grcJettonWalletCode,
+                notJettonWalletCode: self.notJettonWalletCode,
+                pxJettonWalletCode: self.pxJettonWalletCode,
+                dogsJettonWalletCode: self.dogsJettonWalletCode,
+            };
+
+            deploy(DeployParameters {
+                init: initOf Regular(args),
+                mode: SendIgnoreErrors,
+                value: ton("0.05"),
+            });
+        } else {
+            let args = FoundationInit {
+                founder: self.founder,
+                creator: sender(),
+                initiativeId: initiativeId,
+                expiredAt: expiredAt,
+
+                grcMinterAddress: self.grcMinterAddress,
+                notMinterAddress: self.notMinterAddress,
+                usdtMinterAddress: self.usdtMinterAddress,
+                pxMinterAddress: self.pxMinterAddress,
+                dogsMinterAddress: self.dogsMinterAddress,
+
+                usdtJettonWalletCode: self.usdtJettonWalletCode,
+                grcJettonWalletCode: self.grcJettonWalletCode,
+                notJettonWalletCode: self.notJettonWalletCode,
+                pxJettonWalletCode: self.pxJettonWalletCode,
+                dogsJettonWalletCode: self.dogsJettonWalletCode,
+            };
+
+            deploy(DeployParameters {
+                init: initOf Foundation(args),
+                mode: SendIgnoreErrors,
+                value: ton("0.05"),
+            });
+        }
     }
 
     receive(msg: Withdraw) {
-        require(sender() == self.owner, "Only owner");
+        require(sender() == self.founder, "Only founder");
 
-        message(MessageParameters {
-            to: self.owner,
-            value: 0,
-            body: ("GroucheFactory: withdraw").asComment(),
-            mode: SendRemainingValue,
-        });
+        let bal = myBalance();
+        if (bal > GAS_RESERVE_TON) {
+            let payout = bal - GAS_RESERVE_TON;
+            if (payout > 0) {
+                message(MessageParameters {
+                    to: self.founder,
+                    value: payout,
+                    body: ("Factory: withdraw").asComment(),
+                    mode: 0,
+                });
+            }
+        }
     }
 }
