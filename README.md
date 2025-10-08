@@ -227,21 +227,27 @@ npx blueprint create ContractName
 
 ```mermaid
 sequenceDiagram
-    participant A as Donor
-    participant F as Factory
-    participant I as Initiative (Foundation/Regular)
-    participant C as Creator
     participant O as Founder
+    participant F as Factory
+    participant C as Creator
+    participant I as Initiative (Foundation/Regular)
+    participant A as Donor
 
-    A->>F: CreateInitiative (signed)
-    F->>I: Deploy new contract
+    O->>F: Deploy Factory (FactoryInit)
+    C->>F: CreateInitiative (signed)
+    Note over F: Validate Ed25519 signature<br/>Require ≥ 1 TON anti-spam
+    F->>I: Deploy new Initiative (Regular/Foundation)
+
     A->>I: Donate TON / Jettons
     I->>I: Process & store donation
     Note over I: If GRC → split into founder + vesting tranche
+
     A->>I: ClaimGrcVesting (after unlock)
     I->>A: Send unlocked GRC
+
     C->>I: ClaimEscrow (after expiration)
     I->>C: Send remaining tokens
+
     O->>I: ClaimEscrow (after grace period)
     I->>O: Send remaining tokens + TON
 ```
