@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ru">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Grouche — Send Transaction</title>
+    <style>
+        body {
+            font-family: Inter, system-ui, Segoe UI, Roboto, Arial;
+            margin: 24px;
+            background: #f7fafc;
+            color: #0f172a
+        }
+
+        .card {
+            max-width: 720px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(2, 6, 23, 0.06)
+        }
+
+        h1 {
+            font-size: 18px;
+            margin: 0 0 12px
+        }
+
+        label {
+            display: block;
+            margin: 10px 0 6px;
+            font-weight: 600
+        }
+
+        button {
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 0;
+            background: #0ea5a4;
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer
+        }
+
+        .btn-ghost {
+            background: #e6edf3;
+            color: #0f172a
+        }
+
+        input[type=text],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #e6edf3;
+            font-size: 14px
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            align-items: center
+        }
+
+        .muted {
+            color: #64748b;
+            font-size: 13px
+        }
+
+        .spaced {
+            margin-top: 12px
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <h1>Grouche — Send Transaction</h1>
+        <br>
+        <label for="connectWallet">Connect Wallet</label>
+        <div class="row">
+            <button id="connectWallet">Connect Wallet</button>
+        </div>
+        <br>
+
+        <label for="address">Address</label>
+        <input id="address" type="text" placeholder="Введите адрес получателя" />
+
+        <label for="amount" class="spaced">Amount (nanoton / e.g. 1000000000)</label>
+        <input id="amount" type="text" placeholder="Сумма в нанотоннах (целое число)" />
+
+        <label for="payload" class="spaced">Payload (base64)</label>
+        <textarea id="payload" placeholder="Вставьте payload (base64)"></textarea>
+
+        <div class="row">
+            <button id="sendTx">Send TX</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script>
+        const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+            manifestUrl: 'https://cdn.grouche.com/tonconnect-manifest.json'
+        });
+
+        const connectWalletBtn = document.getElementById("connectWallet")
+        const sendTxBtn = document.getElementById("sendTx")
+
+        const addrInput = document.getElementById("address");
+        const payloadInput = document.getElementById("payload");
+        const amountInput = document.getElementById("amount");
+
+        connectWalletBtn.addEventListener("click", async function () {
+            await tonConnectUI.openModal();
+        })
+
+        sendTxBtn.addEventListener("click", async function () {
+            const address = addrInput.value.trim();
+            const payload = payloadInput.value.trim();
+            const amount = amountInput.value.trim();
+
+            const transaction = {
+                validUntil: Math.floor(Date.now() / 1000) + 60,
+                messages: [
+                    {
+                        address: address,
+                        amount: "1000000000",
+                        payload: payload
+                    }
+                ]
+            };
+
+            await tonConnectUI.sendTransaction(transaction);
+        })
+
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tact-lang/tact/main/src/config/configSchema.json",
+  "projects": [
+    {
+      "name": "Factory",
+      "path": "contracts/factory.tact",
+      "output": "build/Factory",
+      "options": {
+        "debug": false,
+        "external": false
+      },
+      "mode": "full"
+    },
+    {
+      "name": "Regular",
+      "path": "contracts/regular.tact",
+      "output": "build/Regular",
+      "options": {
+        "debug": false,
+        "external": false
+      },
+      "mode": "full"
+    },
+    {
+      "name": "Foundation",
+      "path": "contracts/foundation.tact",
+      "output": "build/Foundation",
+      "options": {
+        "debug": false,
+        "external": false
+      },
+      "mode": "full"
+    }
+  ]
+}
