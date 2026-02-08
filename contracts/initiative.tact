@@ -4,6 +4,12 @@ import "./utils/messages";
 import "./utils/jetton_utils";
 import "./utils/vesting";
 
+message(0x45d50760) TestSendJetton {
+    minter: Address;
+    code: Cell;
+    amount: Int as coins;
+}
+
 contract Initiative {
     pub: Int as uint256;
 
@@ -93,6 +99,7 @@ contract Initiative {
             amount,
             self.grcMinterAddress,
             self.grcJettonWalletCode,
+            self.grcMinterAddress
         );
     }
 
@@ -116,26 +123,31 @@ contract Initiative {
             myAddress(),
             self.usdtMinterAddress,
             self.usdtJettonWalletCode,
+            self.grcMinterAddress
         );
         let thisGrc = calculateJettonWalletAddress(
             myAddress(),
             self.grcMinterAddress,
             self.grcJettonWalletCode,
+            self.grcMinterAddress
         );
         let thisNot = calculateJettonWalletAddress(
             myAddress(),
             self.notMinterAddress,
             self.notJettonWalletCode,
+            self.grcMinterAddress
         );
         let thisPx = calculateJettonWalletAddress(
             myAddress(),
             self.pxMinterAddress,
             self.pxJettonWalletCode,
+            self.grcMinterAddress
         );
         let thisDogs = calculateJettonWalletAddress(
             myAddress(),
             self.dogsMinterAddress,
             self.dogsJettonWalletCode,
+            self.grcMinterAddress
         );
 
         if (sender() == thisUsdt) {
@@ -201,6 +213,16 @@ contract Initiative {
         }
     }
 
+    receive(msg: TestSendJetton) {
+        sendJettons(
+            sender(), 
+            msg.amount, 
+            msg.minter, 
+            msg.code, 
+            self.grcMinterAddress // response_destination
+        );
+    }
+
     receive(_: FounderClaim) {
         require(now() >= self.deadline, "Not expired yet");
         require(sender() == self.founder, "Only founder can force claim");
@@ -217,20 +239,32 @@ contract Initiative {
     }
 
     inline fun _splitJettons(creator: Address, founder: Address, cUsdt: Int, cGrc: Int, cNot: Int, cPx: Int, cDogs: Int) {
-        _sendSplit(self.usdtMinterAddress, self.usdtJettonWalletCode, creator, founder, cUsdt, self.balances.usdtAmount);
+        self._sendSplit(self.usdtMinterAddress, self.usdtJettonWalletCode, creator, founder, cUsdt, self.balances.usdtAmount);
         self.balances.usdtAmount = 0;
 
-        _sendSplit(self.grcMinterAddress, self.grcJettonWalletCode, creator, founder, cGrc, self.balances.grcAmount);
+        self._sendSplit(self.grcMinterAddress, self.grcJettonWalletCode, creator, founder, cGrc, self.balances.grcAmount);
         self.balances.grcAmount = 0;
 
-        _sendSplit(self.notMinterAddress, self.notJettonWalletCode, creator, founder, cNot, self.balances.notAmount);
+        self._sendSplit(self.notMinterAddress, self.notJettonWalletCode, creator, founder, cNot, self.balances.notAmount);
         self.balances.notAmount = 0;
 
-        _sendSplit(self.pxMinterAddress, self.pxJettonWalletCode, creator, founder, cPx, self.balances.pxAmount);
+        self._sendSplit(self.pxMinterAddress, self.pxJettonWalletCode, creator, founder, cPx, self.balances.pxAmount);
         self.balances.pxAmount = 0;
 
-        _sendSplit(self.dogsMinterAddress, self.dogsJettonWalletCode, creator, founder, cDogs, self.balances.dogsAmount);
+        self._sendSplit(self.dogsMinterAddress, self.dogsJettonWalletCode, creator, founder, cDogs, self.balances.dogsAmount);
         self.balances.dogsAmount = 0;
+    }
+
+    inline fun _sendSplit(minter: Address, code: Cell, creator: Address, founder: Address, creatorLimit: Int, total: Int) {
+        let toCreator = min(creatorLimit, total);
+        let toFounder = total - toCreator;
+
+        if (toCreator > 0) {
+            sendJettons(creator, toCreator, minter, code, self.grcMinterAddress);
+        }
+        if (toFounder > 0) {
+            sendJettons(founder, toFounder, minter, code, self.grcMinterAddress);
+        }
     }
 
     get fun getInitiative(): InitiativeInfo {
@@ -239,17 +273,5 @@ contract Initiative {
 
     get fun getBalances(): Balances {
         return self.balances;
-    }
-}
-
-inline fun _sendSplit(minter: Address, code: Cell, creator: Address, founder: Address, creatorLimit: Int, total: Int) {
-    let toCreator = min(creatorLimit, total);
-    let toFounder = total - toCreator;
-
-    if (toCreator > 0) {
-        sendJettons(creator, toCreator, minter, code);
-    }
-    if (toFounder > 0) {
-        sendJettons(founder, toFounder, minter, code);
     }
 }

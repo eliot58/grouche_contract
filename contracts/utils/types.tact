@@ -5,6 +5,13 @@ struct JettonWalletStateInit {
     jettonWalletCode: Cell;
 }
 
+struct GovernanceJettonWalletStateInit {
+    status: Int as uint4 = 0;
+    balance: Int as coins = 0;
+    owner: Address;
+    minter: Address;
+}
+
 struct Balances {
     usdtAmount: Int as coins;
     grcAmount: Int as coins;
