@@ -67,9 +67,11 @@ contract Initiative {
     receive(msg: DonateTon) {
         require(checkSignature(msg.signedData.hash(), msg.signature, self.pub), "Invalid signature");
 
+        let initiativeId = msg.signedData.loadUint(32);
         let expiredAt = msg.signedData.loadUint(64);
         let beneficiary: Address = msg.signedData.loadAddress();
 
+        require(initiativeId == self.initiativeId, "Wrong initiativeId");
         require(now() < expiredAt, "Payload expired");
         require(beneficiary == sender(), "Payload not for sender");
     }
@@ -77,11 +79,13 @@ contract Initiative {
     receive(msg: GrcClaim) {
         require(checkSignature(msg.signedData.hash(), msg.signature, self.pub), "Invalid signature");
 
+        let initiativeId: Int = msg.signedData.loadUint(32);
         let amount: Int = msg.signedData.loadCoins();
         let nonce: Int = msg.signedData.loadUint(64);
         let expiredAt: Int = msg.signedData.loadUint(64);
         let beneficiary: Address = msg.signedData.loadAddress();
 
+        require(initiativeId == self.initiativeId, "Wrong initiativeId");
         require(now() < expiredAt, "Payload expired");
         require(beneficiary == sender(), "Payload not for sender");
         require(!self.usedNonces.exists(nonce), "Nonce already used");
@@ -101,14 +105,16 @@ contract Initiative {
         let payload = msg.forwardPayload.loadRef().beginParse();
 
         let signature: Slice = payload.loadBits(512);
-        let signedData: Slice = payload.loadBits(64 + 267 + 16);
+        let signedData: Slice = payload.loadBits(32 + 64 + 267 + 16);
 
         require(checkSignature(signedData.hash(), signature, self.pub), "Invalid signature");
 
+        let initiativeId = signedData.loadUint(32);
         let expiredAt = signedData.loadUint(64);
         let beneficiary = signedData.loadAddress();
         let lockDays = signedData.loadUint(16);
 
+        require(initiativeId == self.initiativeId, "Wrong initiativeId");
         require(now() < expiredAt, "Payload expired");
         require(beneficiary == sender, "Payload not for sender");
 
@@ -165,14 +171,16 @@ contract Initiative {
 
         require(checkSignature(msg.signedData.hash(), msg.signature, self.pub), "Invalid signature");
 
-        let s = msg.signedData;
+        let initiativeId = msg.signedData.loadUint(32);
 
-        let cUsdt = s.loadCoins();
-        let cGrc = s.loadCoins();
-        let cNot = s.loadCoins();
-        let cPx = s.loadCoins();
-        let cDogs = s.loadCoins();
-        let cTon = s.loadCoins();
+        require(initiativeId == self.initiativeId, "Wrong initiativeId");
+        
+        let cUsdt = msg.signedData.loadCoins();
+        let cGrc = msg.signedData.loadCoins();
+        let cNot = msg.signedData.loadCoins();
+        let cPx = msg.signedData.loadCoins();
+        let cDogs = msg.signedData.loadCoins();
+        let cTon = msg.signedData.loadCoins();
 
         self.isClaimed = true;
 

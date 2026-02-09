@@ -156,6 +156,7 @@ describe('Initiative', () => {
         const expiredAt = Math.floor(Date.now() / 1000) + 600;
 
         const signedData = beginCell()
+            .storeUint(initiativeId, 32)
             .storeUint(expiredAt, 64)
             .storeAddress(donator.address)
             .endCell();
@@ -172,14 +173,12 @@ describe('Initiative', () => {
             }
         );
 
-        // Проверяем, что транзакция успешна
         expect(res.transactions).toHaveTransaction({
             from: donator.address,
             to: regular.address,
             success: true,
         });
 
-        // Проверяем, что баланс контракта увеличился (за вычетом комиссий)
         const contractBalance = await blockchain.getContract(regular.address).then(c => c.balance);
         expect(contractBalance).toBeGreaterThan(donationAmount - toNano('0.1'));
     });
@@ -189,11 +188,11 @@ describe('Initiative', () => {
 
         const expiredAt = Math.floor(Date.now() / 1000) + 600;
         const signedData = beginCell()
+            .storeUint(initiativeId, 32)
             .storeUint(expiredAt, 64)
             .storeAddress(donator.address)
             .endCell();
 
-        // Подписываем НЕВЕРНЫМ ключом
         const wrongSignature = nacl.sign.detached(signedData.hash(), wrongKeyPair.secretKey);
 
         const res = await regular.send(
@@ -209,22 +208,21 @@ describe('Initiative', () => {
         expect(res.transactions).toHaveTransaction({
             to: regular.address,
             success: false,
-            exitCode: 48401 // Exit code для "Invalid signature" в Tact
+            exitCode: 48401
         });
     });
 
     it('should fail DonateTon if beneficiary is not the sender', async () => {
         const expiredAt = Math.floor(Date.now() / 1000) + 600;
         
-        // Подписываем данные, где бенефициар — donator
         const signedData = beginCell()
+            .storeUint(initiativeId, 32)
             .storeUint(expiredAt, 64)
             .storeAddress(donator.address)
             .endCell();
 
         const signature = nacl.sign.detached(signedData.hash(), keyPair.secretKey);
 
-        // Но отправляем от имени другого кошелька (creator)
         const res = await regular.send(
             creator.getSender(),
             { value: toNano('1') },
@@ -235,7 +233,6 @@ describe('Initiative', () => {
             }
         );
 
-        // Должно упасть с ошибкой "payload not for sender"
         expect(res.transactions).toHaveTransaction({
             to: regular.address,
             success: false,
@@ -246,11 +243,11 @@ describe('Initiative', () => {
     it('should fail DonateTon if signature payload is expired', async () => {
         const donationAmount = toNano('1');
         
-        // Устанавливаем время истечения в прошлом относительно текущего времени блокчейна
         const currentTime = blockchain.now ?? Math.floor(Date.now() / 1000);
-        const expiredAt = currentTime - 60; // Истекло 60 секунд назад
+        const expiredAt = currentTime - 60;
 
         const signedData = beginCell()
+            .storeUint(initiativeId, 32)
             .storeUint(BigInt(expiredAt), 64)
             .storeAddress(donator.address)
             .endCell();
@@ -267,8 +264,6 @@ describe('Initiative', () => {
             }
         );
 
-        // Ожидаем ошибку "payload expired" (exit code 41804 или подобный, 
-        // но Sandbox покажет success: false из-за require)
         expect(res.transactions).toHaveTransaction({
             to: regular.address,
             success: false,
@@ -278,10 +273,11 @@ describe('Initiative', () => {
 
     it('should fail JettonNotification if payload is expired', async () => {
         const currentTime = blockchain.now ?? Math.floor(Date.now() / 1000);
-        const expiredAt = currentTime - 60; // Expired 1 minute ago
+        const expiredAt = currentTime - 60;
         const lockDays = 0;
     
         const signedData = beginCell()
+            .storeUint(initiativeId, 32)
             .storeUint(BigInt(expiredAt), 64)
             .storeAddress(donator.address)
             .storeUint(lockDays, 16)
@@ -316,7 +312,7 @@ describe('Initiative', () => {
         expect(res.transactions).toHaveTransaction({
             to: regular.address,
             success: false,
-            exitCode: 26045 // "Payload expired"
+            exitCode: 26045
         });
     });
 
@@ -324,8 +320,8 @@ describe('Initiative', () => {
         const expiredAt = Math.floor(Date.now() / 1000) + 1000;
         const lockDays = 0;
         
-        // Signature is created for 'donator'
         const signedData = beginCell()
+            .storeUint(initiativeId, 32)
             .storeUint(expiredAt, 64)
             .storeAddress(donator.address)
             .storeUint(lockDays, 16)
@@ -345,7 +341,6 @@ describe('Initiative', () => {
             code: Cell.fromHex(jettonWalletCode) 
         });
 
-        // Message is sent by 'creator', but payload says 'donator'
         const res = await regular.send(
             blockchain.sender(usdtWallet),
             { value: toNano('0.2') },
@@ -353,7 +348,7 @@ describe('Initiative', () => {
                 $$type: 'JettonNotification',
                 queryId: 0n,
                 amount: toNano('100'),
-                sender: creator.address, // Mismatch here
+                sender: creator.address,
                 forwardPayload: forwardPayload.beginParse()
             }
         );
@@ -361,7 +356,7 @@ describe('Initiative', () => {
         expect(res.transactions).toHaveTransaction({
             to: regular.address,
             success: false,
-            exitCode: 9669 // "Payload not for sender"
+            exitCode: 9669
         });
     });
 
@@ -371,6 +366,7 @@ describe('Initiative', () => {
         const lockDays = 0;
     
         const signedData = beginCell()
+            .storeUint(initiativeId, 32)
             .storeUint(expiredAt, 64)
             .storeAddress(donator.address)
             .storeUint(lockDays, 16)
@@ -405,7 +401,7 @@ describe('Initiative', () => {
         expect(res.transactions).toHaveTransaction({
             to: regular.address,
             success: false,
-            exitCode: 48401 // "Invalid signature"
+            exitCode: 48401
         });
     });
 
@@ -415,6 +411,7 @@ describe('Initiative', () => {
         const lockDays = 0;
     
         const signedData = beginCell()
+            .storeUint(initiativeId, 32)
             .storeUint(expiredAt, 64)
             .storeAddress(donator.address)
             .storeUint(lockDays, 16)
@@ -458,6 +455,7 @@ describe('Initiative', () => {
         const lockDays = 90;
     
         const signedData = beginCell()
+            .storeUint(initiativeId, 32)
             .storeUint(expiredAt, 64)
             .storeAddress(donator.address)
             .storeUint(lockDays, 16)
@@ -501,6 +499,7 @@ describe('Initiative', () => {
         const expiredAt = BigInt(Math.floor(Date.now() / 1000) + 1000);
     
         const signedData = beginCell()
+            .storeUint(initiativeId, 32)
             .storeCoins(amount)
             .storeUint(nonce, 64)
             .storeUint(expiredAt, 64)
@@ -534,6 +533,7 @@ describe('Initiative', () => {
         const expiredAt = BigInt(Math.floor(Date.now() / 1000) + 1000);
 
         const signedData = beginCell()
+            .storeUint(initiativeId, 32)
             .storeCoins(amount)
             .storeUint(nonce, 64)
             .storeUint(expiredAt, 64)
@@ -565,6 +565,7 @@ describe('Initiative', () => {
         const expiredAt = BigInt(Math.floor(Date.now() / 1000) + 1000);
     
         const signedData = beginCell()
+            .storeUint(initiativeId, 32)
             .storeCoins(amount)
             .storeUint(nonce, 64)
             .storeUint(expiredAt, 64)
@@ -588,7 +589,6 @@ describe('Initiative', () => {
 
 
     it('should fail FounderClaim if called before deadline', async () => {
-        // Убеждаемся, что время еще не вышло
         const res = await regular.send(
             founder.getSender(),
             { value: toNano('0.2') },
@@ -623,11 +623,11 @@ describe('Initiative', () => {
     });
 
     it('should successfully execute FounderClaim and send all balances to founder', async () => {
-        // --- ШАГ 1: Донатим TON ---
         const tonDonation = toNano('10');
         const expiredAtTon = Math.floor(Date.now() / 1000) + 600;
     
         const signedDataTon = beginCell()
+            .storeUint(initiativeId, 32)
             .storeUint(expiredAtTon, 64)
             .storeAddress(donator.address)
             .endCell();
@@ -650,12 +650,12 @@ describe('Initiative', () => {
             success: true,
         });
     
-        // --- ШАГ 2: Донатим USDT ---
         const usdtAmount = toNano('100');
         const expiredAtUsdt = Math.floor(Date.now() / 1000) + 1000;
         const lockDays = 0;
     
         const signedDataUsdt = beginCell()
+            .storeUint(initiativeId, 32)
             .storeUint(expiredAtUsdt, 64)
             .storeAddress(donator.address)
             .storeUint(lockDays, 16)
@@ -692,10 +692,6 @@ describe('Initiative', () => {
             success: true
         });
     
-        // --- ШАГ 3: FounderClaim после дедлайна ---
-        
-        // Перематываем время (используем значение из beforeEach или вычисляем заново)
-        // Предполагаем, что дедлайн был +3000000 сек от начала теста
         blockchain.now = Number(deadline + 100n);
     
         res = await regular.send(
@@ -704,21 +700,18 @@ describe('Initiative', () => {
             { $$type: 'FounderClaim' }
         );
     
-        // 1. Проверяем успех транзакции вызова
         expect(res.transactions).toHaveTransaction({
             from: founder.address,
             to: regular.address,
             success: true,
         });
     
-        // 2. Проверяем, что контракт отправил USDT основателю
         expect(res.transactions).toHaveTransaction({
             from: regular.address,
-            to: usdtWallet, // Кошелек жетона контракта отправляет перевод
+            to: usdtWallet,
             success: true,
         });
     
-        // 3. Проверяем, что остаток TON ушел основателю с правильным комментарием
         expect(res.transactions).toHaveTransaction({
             from: regular.address,
             to: founder.address,
@@ -727,15 +720,14 @@ describe('Initiative', () => {
                          x!.beginParse().skip(32).loadStringTail() === "Escrow: Force claim by founder"
         });
     
-        // 4. Проверяем обнуление балансов в стейте
         const finalBalances = await regular.getGetBalances();
         expect(finalBalances.usdtAmount).toBe(0n);
     });
 
     it('should fail CreatorClaim if isRegular is false', async () => {
         blockchain.now = Number(deadline + 100n);
-        // 2. Формируем пустые лимиты (для этого теста суммы не важны)
         const signedData = beginCell()
+            .storeUint(initiativeId, 32)
             .storeCoins(0n) // USDT
             .storeCoins(0n) // GRC
             .storeCoins(0n) // NOT
@@ -746,7 +738,6 @@ describe('Initiative', () => {
 
         const signature = nacl.sign.detached(signedData.hash(), keyPair.secretKey);
 
-        // 3. Пытаемся вызвать CreatorClaim на контракте FOUNDATION (isRegular = false)
         const res = await foundation.send(
             creator.getSender(),
             { value: toNano('0.5') },
@@ -757,11 +748,10 @@ describe('Initiative', () => {
             }
         );
 
-        // Ожидаем ошибку "CreatorClaim is only available for Regular initiatives"
         expect(res.transactions).toHaveTransaction({
             to: foundation.address,
             success: false,
-            exitCode: 23428 // Exit code для этого require
+            exitCode: 23428
         });
     });
 
@@ -770,8 +760,8 @@ describe('Initiative', () => {
         const tonDonation = toNano('10');
         const expiredAtTon = Math.floor(Date.now() / 1000) + 600;
     
-        // 1. Донатим TON
         const signedDataTon = beginCell()
+            .storeUint(initiativeId, 32)
             .storeUint(expiredAtTon, 64)
             .storeAddress(donator.address)
             .endCell();
@@ -788,14 +778,14 @@ describe('Initiative', () => {
             }
         );
     
-        // 2. Донатим USDT
         const usdtAmount = toNano('100');
         const expiredAtUsdt = Math.floor(Date.now() / 1000) + 1000;
         
         const signedDataUsdt = beginCell()
+            .storeUint(initiativeId, 32)
             .storeUint(expiredAtUsdt, 64)
             .storeAddress(donator.address)
-            .storeUint(0, 16) // lockDays
+            .storeUint(0, 16)
             .endCell();
     
         const signatureUsdt = nacl.sign.detached(signedDataUsdt.hash(), keyPair.secretKey);
@@ -807,7 +797,6 @@ describe('Initiative', () => {
                 .endCell()
             ).endCell();
     
-        // ВАЖНО: Это адрес кошелька USDT, который принадлежит контракту Initiative
         const initiativeUsdtWallet = calculateJettonWalletAddress(regular.address, { 
             master: usdtMinter.address, 
             code: Cell.fromHex(jettonWalletCode) 
@@ -825,14 +814,13 @@ describe('Initiative', () => {
             }
         );
     
-        // 3. CreatorClaim
-        // Фиксируем время СТРОГО перед вызовом
         blockchain.now = Number(deadline) + 100;
     
         const limitUsdt = toNano('60');
-        const limitTon = toNano('2'); // Сделаем лимит меньше доната, чтобы проверить остаток основателю
+        const limitTon = toNano('2');
     
         const signedDataClaim = beginCell()
+            .storeUint(initiativeId, 32)
             .storeCoins(limitUsdt)
             .storeCoins(0n) // GRC
             .storeCoins(0n) // NOT
@@ -843,7 +831,6 @@ describe('Initiative', () => {
     
         const signatureClaim = nacl.sign.detached(signedDataClaim.hash(), keyPair.secretKey);
     
-        // Вызываем клайм
         const claimRes = await regular.send(
             creator.getSender(),
             { value: toNano('1') },
@@ -854,23 +841,18 @@ describe('Initiative', () => {
             }
         );
     
-        // --- ПРОВЕРКИ ---
-    
         expect(claimRes.transactions).toHaveTransaction({
             from: creator.address,
             to: regular.address,
             success: true
         });
     
-        // Проверка USDT: контракт Initiative должен отправить ДВА сообщения 
-        // на свой же Jetton-кошелек для инициации трансферов
         expect(claimRes.transactions).toHaveTransaction({
             from: regular.address,
             to: initiativeUsdtWallet,
             success: true,
         });
     
-        // Проверка TON: Выплата Creator
         expect(claimRes.transactions).toHaveTransaction({
             from: regular.address,
             to: creator.address,
@@ -878,7 +860,6 @@ describe('Initiative', () => {
             body: (x) => x!.beginParse().skip(32).loadStringTail() === "Escrow: Creator payout"
         });
     
-        // Проверка TON: Выплата Founder (остаток)
         expect(claimRes.transactions).toHaveTransaction({
             from: regular.address,
             to: founder.address,
@@ -889,6 +870,7 @@ describe('Initiative', () => {
     
     it('should fail CreatorClaim if called twice', async () => {
         const signedData = beginCell()
+            .storeUint(initiativeId, 32)
             .storeCoins(0n).storeCoins(0n).storeCoins(0n)
             .storeCoins(0n).storeCoins(0n).storeCoins(0n)
             .endCell();
@@ -902,16 +884,14 @@ describe('Initiative', () => {
 
         blockchain.now = Number(deadline) + 100;
     
-        // Первый раз - успех
         await regular.send(creator.getSender(), { value: toNano('1') }, msg);
         
-        // Второй раз - ошибка "Already claimed"
         const res = await regular.send(creator.getSender(), { value: toNano('1') }, msg);
         
         expect(res.transactions).toHaveTransaction({
             to: regular.address,
             success: false,
-            exitCode: 42504 // "Already claimed"
+            exitCode: 42504
         });
     });
 });
